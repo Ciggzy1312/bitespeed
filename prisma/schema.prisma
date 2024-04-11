@@ -18,7 +18,7 @@ model Contact {
   phoneNumber        String?
   email              String?
   linkedId           Int?
-  linkPrecedence      LinkPrecedence[]
+  linkPrecedence      LinkPrecedence
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
