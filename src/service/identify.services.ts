@@ -37,32 +37,64 @@ export const checkIdentity = async (email: string, phoneNumber: string) => {
             }
         }
 
-        const { allLinkedContacts, uniqueEmails, uniquePhoneNumbers } = await getLinkedContacts(linkedContacts)
+        const { allLinkedContacts, uniqueEmails, uniquePhoneNumbers } = await getLinkedContacts(linkedContacts);
 
         const primaryContactList = allLinkedContacts.filter((item) => item.linkPrecedence === LinkPrecedence.primary);
 
+        if (primaryContactList.length > 1) {
+            const firstContact = primaryContactList[0];
 
-        const primaryContact = primaryContactList[0];
-
-        if (checkContact(uniqueEmails, uniquePhoneNumbers, email, phoneNumber)) {
-            return {
-                contacts: formatResponse(primaryContact, allLinkedContacts),
-                message: "Linked contacts fetched successfully"
+            if (!firstContact.email || !firstContact.phoneNumber) {
+                await prisma.contact.update({
+                    where: {
+                        id: firstContact.id
+                    },
+                    data: {
+                        email: firstContact.email ?? email,
+                        phoneNumber: firstContact.phoneNumber ?? phoneNumber
+                    }
+                });
             }
-        }
-        else {
-            const secondaryContact = await prisma.contact.create({
+
+            const contacts = await prisma.contact.updateMany({
+                where: {
+                    id: { in: allLinkedContacts.filter((item) => item.id !== firstContact.id).map((item) => item.id) }
+                },
                 data: {
-                    email: email ?? null,
-                    phoneNumber: phoneNumber ?? null,
-                    linkedId: primaryContact.id,
+                    linkedId: firstContact.id,
                     linkPrecedence: LinkPrecedence.secondary
                 }
             });
 
+            const { allLinkedContacts: allUpdatedContacts } = await getLinkedContacts(linkedContacts)
+
             return {
-                contacts: formatResponse(primaryContact, linkedContacts.concat(secondaryContact)),
-                message: "Linked contacts fetched successfully"
+                contacts: formatResponse(firstContact, allUpdatedContacts),
+                message: "Contacts updated successfully"
+            }
+        } else {
+            const primaryContact = primaryContactList[0];
+
+            if (checkContact(uniqueEmails, uniquePhoneNumbers, email, phoneNumber)) {
+                return {
+                    contacts: formatResponse(primaryContact, allLinkedContacts),
+                    message: "Linked contacts fetched successfully"
+                }
+            }
+            else {
+                const secondaryContact = await prisma.contact.create({
+                    data: {
+                        email: email ?? null,
+                        phoneNumber: phoneNumber ?? null,
+                        linkedId: primaryContact.id,
+                        linkPrecedence: LinkPrecedence.secondary
+                    }
+                });
+
+                return {
+                    contacts: formatResponse(primaryContact, linkedContacts.concat(secondaryContact)),
+                    message: "Linked contacts fetched successfully"
+                }
             }
         }
     } catch (error: any) {
