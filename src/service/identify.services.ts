@@ -1,5 +1,6 @@
 import { LinkPrecedence, PrismaClient } from "@prisma/client";
 import log from '../helper/logger.helper';
+import { formatResponse } from "../utils/response.utils";
 
 const prisma = new PrismaClient();
 
@@ -14,12 +15,12 @@ export const checkIdentity = async (email: string, phoneNumber: string) => {
                 ]
             },
             orderBy: {
-                id: 'asc',
+                createdAt: 'asc',
             },
         })
 
         // if no contact then create a primary contact
-        if (linkedContacts.length == 0) {
+        if (!linkedContacts.length) {
             const primaryContact = await prisma.contact.create({
                 data: {
                     email: email ?? null,
@@ -29,12 +30,18 @@ export const checkIdentity = async (email: string, phoneNumber: string) => {
                 }
             });
 
-            return { linkedContacts: primaryContact, message: "Primary contact created successfully", error: null}
+            return {
+                contacts: formatResponse(primaryContact, []),
+                message: "Primary contact created successfully"
+            }
         }
+        
+        const primaryContactList = linkedContacts.filter((item) => item.linkPrecedence === LinkPrecedence.primary)[0];
 
-        // if more data then create a primary contact and convert rest to secondary
-
-        return { linkedContacts, message: "Linked contacts fetched successfully", error: null };
+        return {
+            contacts: formatResponse(primaryContactList, linkedContacts),
+            message: "Linked contacts fetched successfully"
+        }
     } catch (error: any) {
         log.error(error.message);
         return { error: "Service: failed while identifying contacts" };

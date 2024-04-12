@@ -11,14 +11,14 @@ export const identifyController = async (req: Request, res: Response) => {
     try {
         const { email, phoneNumber } : IContactInput = req.body;
 
-        const { linkedContacts, message, error } = await checkIdentity(email as string, phoneNumber as string);
+        const { contacts, message, error } = await checkIdentity(email as string, phoneNumber as string);
         if (error) {
             log.error(error);
             return res.status(400).json({ message: error });
         }
 
         log.info(message);
-        return res.status(200).json({ message, linkedContacts });
+        return res.status(200).json({ contacts });
     } catch (error: any) {
         log.error(error);
         res.status(400).json({ message: "Controller: failed while identifying contacts" });
